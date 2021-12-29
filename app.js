@@ -28,7 +28,9 @@ let JSFIleData;
 class Watcher extends EventEmitter {
 	constructor(opts) {
 		super();
-		this.opts = Object.assign({ port: 35829 }, opts);
+
+		this.opts = Object.assign({ port: 35729 }, opts);
+
 		this.connections = {};
 	}
 
@@ -80,8 +82,6 @@ class Watcher extends EventEmitter {
 				res.end('');
 			}
 		});
-
-		server.on('upgrade', function upgrade(request, socket, head) {});
 
 		server.listen(this.opts.port, function(){
             debug(`ReloadSite Listening to Port: ${self.opts.port}`);
@@ -149,7 +149,7 @@ class Watcher extends EventEmitter {
 		});
 
 		debug('reloading');
-		this.emit('message', 'reloaded');
+        this.emit('reloaded', this.opts.port);
 
 		// debug(this.connections);
 		for (let id in this.connections) {
