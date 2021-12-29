@@ -1,0 +1,25 @@
+{
+  "name": "reloadsite",
+  "version": "1.0.0",
+  "main": "app.js",
+  "license": "MIT",
+  "dependencies": {
+    "aproba": "^2.0.0",
+    "chokidar": "^3.5.2",
+    "debug": "^4.3.3",
+    "events": "^3.3.0",
+    "sockjs": "^0.3.24"
+  },
+  "scripts": {
+    "dev": "nodemon app.js"
+  },
+  "description": "A simple live-reload server with events and ability to reload sites on demand",
+  "devDependencies": {},
+  "keywords": [
+    "live",
+    "reload",
+    "site",
+    "livereload"
+  ],
+  "author": "Anthony Mugendi <ngurumugz@gmail.com>"
+}
