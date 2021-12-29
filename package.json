@@ -21,5 +21,13 @@
     "site",
     "livereload"
   ],
-  "author": "Anthony Mugendi <ngurumugz@gmail.com>"
+  "author": "Anthony Mugendi <ngurumugz@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mugendi/reloadsite.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mugendi/reloadsite/issues"
+  },
+  "homepage": "https://github.com/mugendi/reloadsite#readme"
 }
