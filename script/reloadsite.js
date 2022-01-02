@@ -12,21 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-const socketURL = `http://localhost:{{PORT}}/ws`,
-	sockjs = new SockJS(socketURL);
+const socketURL = `http://localhost:{{PORT}}/ws`;
 
-sockjs.onopen = function () {
-	console.log('RealoadSite Ready', sockjs.protocol);
-};
+function start() {
+	
+	let sockjs = new SockJS(socketURL);
 
-sockjs.onmessage = function (e) {
-	//reload
-	if (e.data == 'reload') {
-		window.location.reload();
-	}
-};
+	sockjs.onopen = function () {
+		console.log('RealoadSite Ready', sockjs.protocol);
+	};
 
-sockjs.onclose = function () {
-	// print('[*] close');
-	console.log('RealoadSite Socket Closed');
-};
+	sockjs.onmessage = function (e) {
+		//reload
+		if (e.data == 'reload') {
+			window.location.reload();
+		}
+	};
+
+	sockjs.onclose = function () {
+		// print('[*] close');
+		console.log('RealoadSite Socket Closed');
+		// retry to connect
+		setTimeout(() => {
+			start() 
+		}, 2000);
+	};
+}
+
+start()
