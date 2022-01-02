@@ -27,5 +27,6 @@ sockjs.onmessage = function (e) {
 };
 
 sockjs.onclose = function () {
-	print('[*] close');
+	// print('[*] close');
+	console.log('RealoadSite Socket Closed');
 };
