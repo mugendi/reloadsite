@@ -14,12 +14,13 @@
 
 const socketURL = `http://localhost:{{PORT}}/ws`;
 
-function start() {
-	
+function start(isReloaded = false) {
 	let sockjs = new SockJS(socketURL);
 
 	sockjs.onopen = function () {
 		console.log('RealoadSite Ready', sockjs.protocol);
+		// if reloaded, then refresh page at least
+		if (isReloaded) window.location.reload();
 	};
 
 	sockjs.onmessage = function (e) {
@@ -34,9 +35,9 @@ function start() {
 		console.log('RealoadSite Socket Closed');
 		// retry to connect
 		setTimeout(() => {
-			start() 
+			start(true);
 		}, 2000);
 	};
 }
 
-start()
+start();
