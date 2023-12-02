@@ -45,8 +45,7 @@ class Watcher extends EventEmitter {
 
 			function log() {
 				debug(
-					`${
-						Object.keys(self.connections).length
+					`${Object.keys(self.connections).length
 					} clients connected...`
 				);
 			}
@@ -67,6 +66,13 @@ class Watcher extends EventEmitter {
 
 		server.on('request', (req, res) => {
 			if (req.url.indexOf('/reloadsite.js') == 0) {
+				const headers = {
+					'Access-Control-Allow-Origin': '*',
+					'Access-Control-Allow-Methods': 'OPTIONS, POST, GET',
+					'Access-Control-Max-Age': 2592000, 
+					"content-type" : "application/javascript;"
+				};
+
 				let file = path.join(__dirname, './script/reloadsite.js');
 
 				if (!JSFIleData) {
@@ -75,7 +81,7 @@ class Watcher extends EventEmitter {
 						.replace('{{PORT}}', this.opts.port);
 				}
 
-				res.writeHead(200);
+				res.writeHead(200, headers);
 
 				res.end(JSFIleData);
 			} else {
@@ -83,9 +89,9 @@ class Watcher extends EventEmitter {
 			}
 		});
 
-		server.listen(this.opts.port, function(){
-            debug(`ReloadSite Listening to Port: ${self.opts.port}`);
-        });
+		server.listen(this.opts.port, function () {
+			debug(`ReloadSite Listening to Port: ${self.opts.port}`);
+		});
 	}
 
 	watch(dirs, opts = {}) {
@@ -94,7 +100,7 @@ class Watcher extends EventEmitter {
 		this.watchOpts = Object.assign(
 			{
 				persistent: true,
-                autoReload:true,
+				autoReload: true,
 				extensions: [
 					'html',
 					'css',
@@ -131,10 +137,10 @@ class Watcher extends EventEmitter {
 
 		this.emit('changed', file);
 
-        if(this.watchOpts.autoReload){
-            this.reload();
-        }
-		
+		if (this.watchOpts.autoReload) {
+			this.reload();
+		}
+
 	}
 
 	async reload(delay = 0) {
@@ -149,7 +155,7 @@ class Watcher extends EventEmitter {
 		});
 
 		debug('reloading');
-        this.emit('reloaded', this.opts.port);
+		this.emit('reloaded', this.opts.port);
 
 		// debug(this.connections);
 		for (let id in this.connections) {
