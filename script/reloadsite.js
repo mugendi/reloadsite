@@ -12,32 +12,67 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-const socketURL = `http://localhost:{{PORT}}/ws`;
+var socketURL = `ws://localhost:{{PORT}}`;
+var timeoutIntVal;
 
 function start(isReloaded = false) {
-	let sockjs = new SockJS(socketURL);
+  start.isConnecting = true;
 
-	sockjs.onopen = function () {
-		console.log('RealoadSite Ready', sockjs.protocol);
-		// if reloaded, then refresh page at least
-		if (isReloaded) window.location.reload();
-	};
+  var socket = new WebSocket(socketURL);
 
-	sockjs.onmessage = function (e) {
-		//reload
-		if (e.data == 'reload') {
-			window.location.reload();
-		}
-	};
+  socket.onopen = function () {
+    console.info('LiveReload Connected');
+    start.isConnecting = false;
+  };
 
-	sockjs.onclose = function () {
-		// print('[*] close');
-		console.log('RealoadSite Socket Closed');
-		// retry to connect
-		setTimeout(() => {
-			start(true);
-		}, 2000);
-	};
+  socket.onclose = function (event) {
+    console.warn(
+      event.wasClean
+        ? 'LiveReload Disconnected'
+        : 'LiveReload Connection break: ' + (event.reason || event.code)
+    );
+
+    start.isConnecting = false;
+    reconnect();
+  };
+
+  socket.onerror = function (err) {
+    console.error('LiveReload Error', err.message || '');
+    start.isConnecting = false;
+    reconnect();
+  };
+
+  socket.onmessage = function (e) {
+    //reload
+    if (e.data == 'reload') {
+      window.location.reload();
+    }
+  };
+}
+
+function reconnect() {
+  reconnect.retries = reconnect.retries || 1;
+  reconnect.wait = reconnect.wait || 500;
+
+  clearTimeout(timeoutIntVal);
+
+  if (reconnect.retries >= 20) {
+    console.error(
+      'Unable to recconnect to ' +
+        socketURL +
+        ' after ' +
+        reconnect.retries +
+        ' retries!'
+    );
+    return;
+  }
+
+ 
+  timeoutIntVal = setTimeout(() => {
+    reconnect.retries++;
+    reconnect.wait = Math.ceil(reconnect.wait * 1.15);
+    start(true);
+  }, reconnect.wait);
 }
 
 start();
