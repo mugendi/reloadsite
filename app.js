@@ -13,155 +13,164 @@
 // limitations under the License.
 
 const { createServer } = require('http'),
-	sockjs = require('sockjs'),
-	chokidar = require('chokidar'),
-	fs = require('fs'),
-	path = require('path'),
-	aproba = require('aproba'),
-	server = createServer(),
-	wss = sockjs.createServer({ log: (s) => null }),
-	debug = require('debug')('ReloadSite'),
-	EventEmitter = require('events');
+  chokidar = require('chokidar'),
+  fs = require('fs'),
+  path = require('path'),
+  server = createServer(),
+  ws = require('ws'),
+  debug = require('debug-symbols')('ReloadSite'),
+  EventEmitter = require('events');
 
 let JSFIleData;
 
 class Watcher extends EventEmitter {
-	constructor(opts) {
-		super();
+  constructor(opts) {
+    super();
 
-		this.opts = Object.assign({ port: 35729 }, opts);
+    this.opts = Object.assign({ port: 35729 }, opts);
 
-		this.connections = {};
+    this.connections = {};
+  }
+
+  start_server() {
+    let self = this;
+    
+    const wss = new ws.Server({ server });
+
+    wss.on('connection', function (ws) {
+      // add connections so we can broadcast
+      self.connections[ws.id] = ws;
+
+      function log() {
+        debug.log(`${Object.keys(self.connections).length} clients connected...`);
+      }
+
+      ws.on('data', function (message) {
+        ws.write(message);
+      });
+
+      ws.on('close', function () {
+        if (ws.id in self.connections) {
+          delete self.connections[ws.id];
+          log();
+        }
+      });
+
+      log();
+    });
+
+    server.on('request', (req, res) => {
+      if (req.url.indexOf('/reloadsite.js') == 0) {
+        const headers = {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'OPTIONS, POST, GET',
+          'Access-Control-Max-Age': 2592000,
+          'content-type': 'application/javascript;',
+        };
+
+        let file = path.join(__dirname, './script/reloadsite.js');
+
+        if (!JSFIleData) {
+          JSFIleData = fs
+            .readFileSync(file, 'utf-8')
+            .replace('{{PORT}}', this.opts.port);
+        }
+
+        res.writeHead(200, headers);
+
+        res.end(JSFIleData);
+      } else {
+        res.end('');
+      }
+    });
+
+    server.listen(this.opts.port, function () {
+      debug.log(`ReloadSite Listening to Port: ${self.opts.port}`);
+    });
+  }
+
+  watch(dirs, opts = {}) {
+
+	if(typeof opts !== 'object'){
+		throw new Error("Chokidar options must be an object. See: https://www.npmjs.com/package/chokidar#api")
 	}
 
-	start_server() {
-		let self = this;
+	// make array and filter
+	dirs = arrify(dirs).filter(p=>path.resolve(p));
 
-		wss.installHandlers(server, { prefix: '/ws' });
+    this.watchOpts = Object.assign(
+      {
+        persistent: true,
+        autoReload: true,
+        extensions: [
+          'html',
+          'css',
+          'js',
+          'png',
+          'gif',
+          'jpg',
+          'php',
+          'php5',
+          'py',
+          'rb',
+          'erb',
+          'coffee',
+        ],
+      },
+      opts
+    );
 
-		wss.on('connection', function (ws) {
-			// add connections so we can broadcast
-			self.connections[ws.id] = ws;
+    // console.log(opts);
+    // console.log(this.watchOpts);
 
-			function log() {
-				debug(
-					`${Object.keys(self.connections).length
-					} clients connected...`
-				);
-			}
+    // filter dirs
+    this.start_server();
 
-			ws.on('data', function (message) {
-				ws.write(message);
-			});
+    let watcher = chokidar.watch(dirs, opts);
 
-			ws.on('close', function () {
-				if (ws.id in self.connections) {
-					delete self.connections[ws.id];
-					log();
-				}
-			});
+    watcher
+      .on('change', (f) => this.changed(f))
+      .on('unlink', (f) => this.changed(f));
+  }
 
-			log();
-		});
+  changed(file) {
+    debug.log({ file });
 
-		server.on('request', (req, res) => {
-			if (req.url.indexOf('/reloadsite.js') == 0) {
-				const headers = {
-					'Access-Control-Allow-Origin': '*',
-					'Access-Control-Allow-Methods': 'OPTIONS, POST, GET',
-					'Access-Control-Max-Age': 2592000, 
-					"content-type" : "application/javascript;"
-				};
+    this.emit('changed', file);
 
-				let file = path.join(__dirname, './script/reloadsite.js');
+    if (this.watchOpts.autoReload) {
+      this.reload();
+    }
+  }
 
-				if (!JSFIleData) {
-					JSFIleData = fs
-						.readFileSync(file, 'utf-8')
-						.replace('{{PORT}}', this.opts.port);
-				}
+  async reload(delay = 0) {
 
-				res.writeHead(200, headers);
-
-				res.end(JSFIleData);
-			} else {
-				res.end('');
-			}
-		});
-
-		server.listen(this.opts.port, function () {
-			debug(`ReloadSite Listening to Port: ${self.opts.port}`);
-		});
+	if(typeof delay !== 'number'){
+		throw new Error("The 'delay' argument must be a number")
 	}
 
-	watch(dirs, opts = {}) {
-		aproba('AO|A', arguments);
+    delay = this.watchOpts.delay || delay;
 
-		this.watchOpts = Object.assign(
-			{
-				persistent: true,
-				autoReload: true,
-				extensions: [
-					'html',
-					'css',
-					'js',
-					'png',
-					'gif',
-					'jpg',
-					'php',
-					'php5',
-					'py',
-					'rb',
-					'erb',
-					'coffee',
-				],
-			},
-			opts
-		);
+    await new Promise((resolve, reject) => {
+      setTimeout(() => {
+        resolve();
+      }, delay);
+    });
 
-		// console.log(opts);
-		// console.log(this.watchOpts);
+    debug.log('reloading');
+    this.emit('reloaded', this.opts.port);
 
-		// filter dirs
-		this.start_server();
+    // debug.log(this.connections);
+    for (let id in this.connections) {
+      this.connections[id].send('reload');
+    }
+  }
+}
 
-		let watcher = chokidar.watch(dirs, opts);
 
-		watcher
-			.on('change', (f) => this.changed(f))
-			.on('unlink', (f) => this.changed(f));
-	}
-
-	changed(file) {
-		debug({ file });
-
-		this.emit('changed', file);
-
-		if (this.watchOpts.autoReload) {
-			this.reload();
-		}
-
-	}
-
-	async reload(delay = 0) {
-		aproba('N|', arguments);
-
-		delay = this.watchOpts.delay || delay;
-
-		await new Promise((resolve, reject) => {
-			setTimeout(() => {
-				resolve();
-			}, delay);
-		});
-
-		debug('reloading');
-		this.emit('reloaded', this.opts.port);
-
-		// debug(this.connections);
-		for (let id in this.connections) {
-			this.connections[id].write('reload');
-		}
-	}
+function arrify(v) {
+	if (v === undefined) return [];
+	return Array.isArray(v) ? v : [v];
 }
 
 module.exports = (opts = {}) => new Watcher(opts);
