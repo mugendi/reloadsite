@@ -22,6 +22,7 @@ const { createServer } = require('http'),
   EventEmitter = require('events');
 
 let JSFIleData;
+let timeoutIntVal;
 
 class Watcher extends EventEmitter {
   constructor(opts) {
@@ -34,7 +35,7 @@ class Watcher extends EventEmitter {
 
   start_server() {
     let self = this;
-    
+
     const wss = new ws.Server({ server });
 
     wss.on('connection', function (ws) {
@@ -42,7 +43,9 @@ class Watcher extends EventEmitter {
       self.connections[ws.id] = ws;
 
       function log() {
-        debug.log(`${Object.keys(self.connections).length} clients connected...`);
+        debug.log(
+          `${Object.keys(self.connections).length} clients connected...`
+        );
       }
 
       ws.on('data', function (message) {
@@ -70,6 +73,7 @@ class Watcher extends EventEmitter {
 
         let file = path.join(__dirname, './script/reloadsite.js');
 
+        // read file once
         if (!JSFIleData) {
           JSFIleData = fs
             .readFileSync(file, 'utf-8')
@@ -90,31 +94,61 @@ class Watcher extends EventEmitter {
   }
 
   watch(dirs, opts = {}) {
-
-	if(typeof opts !== 'object'){
-		throw new Error("Chokidar options must be an object. See: https://www.npmjs.com/package/chokidar#api")
-	}
-
-	// make array and filter
-	dirs = arrify(dirs).filter(p=>path.resolve(p));
+    if (typeof opts !== 'object') {
+      throw new Error(
+        'Chokidar options must be an object. See: https://www.npmjs.com/package/chokidar#api'
+      );
+    }
 
     this.watchOpts = Object.assign(
       {
         persistent: true,
         autoReload: true,
+        delay: 1000,
+        // always ignore node_modules
+        ignored: /node_modules/,
         extensions: [
-          'html',
+          // Styles
           'css',
-          'js',
-          'png',
-          'gif',
+
+          // Images:source https://github.com/mdn/content/blob/main/files/en-us/web/media/formats/image_types/index.md
           'jpg',
+          'jpeg',
+          'jpe',
+          'jif',
+          'jfif',
+          'pjpeg',
+          'pjp',
+          'png',
+          'svg',
+          'tif',
+          'tiff',
+          'webp',
+          'apng',
+          'avif',
+
+          // web scripts
+          'asp',
+          'aspx',
+          'cgi',
+          'htm',
+          'html',
+          'jhtml',
+          'js',
+          'jsa',
+          'jsp',
           'php',
+          'php2',
+          'php3',
+          'php4',
           'php5',
-          'py',
-          'rb',
-          'erb',
-          'coffee',
+          'php6',
+          'php7',
+          'phps',
+          'pht',
+          'phtml',
+          'shtml',
+          'xml',
         ],
       },
       opts
@@ -123,10 +157,19 @@ class Watcher extends EventEmitter {
     // console.log(opts);
     // console.log(this.watchOpts);
 
+    // make array and globs to watch only specific files
+    dirs = arrify(dirs).filter((p) => path.resolve(p));
+
+    let patterns = dirs.map((dir) =>
+      path.join(dir, `**/*.{${this.watchOpts.extensions.join(',')}}`)
+    );
+
     // filter dirs
     this.start_server();
 
-    let watcher = chokidar.watch(dirs, opts);
+    // console.log(this.watchOpts);
+
+    let watcher = chokidar.watch(patterns, this.watchOpts);
 
     watcher
       .on('change', (f) => this.changed(f))
@@ -139,38 +182,35 @@ class Watcher extends EventEmitter {
     this.emit('changed', file);
 
     if (this.watchOpts.autoReload) {
-      this.reload();
+      this.reload(file);
     }
   }
 
-  async reload(delay = 0) {
+  async reload(file = null) {
+    clearTimeout(timeoutIntVal);
 
-	if(typeof delay !== 'number'){
-		throw new Error("The 'delay' argument must be a number")
-	}
+    timeoutIntVal = setTimeout(() => {
+      debug.log('reloading');
+      this.emit('reloaded', this.opts.port);
 
-    delay = this.watchOpts.delay || delay;
+      //   construct the object we want to send
+      const data = {
+        action: 'reload',
+        file,
+        fileName: path.basename(file),
+      };
 
-    await new Promise((resolve, reject) => {
-      setTimeout(() => {
-        resolve();
-      }, delay);
-    });
-
-    debug.log('reloading');
-    this.emit('reloaded', this.opts.port);
-
-    // debug.log(this.connections);
-    for (let id in this.connections) {
-      this.connections[id].send('reload');
-    }
+      // debug.log(this.connections);
+      for (let id in this.connections) {
+        this.connections[id].send(JSON.stringify(data));
+      }
+    }, 500);
   }
 }
 
-
 function arrify(v) {
-	if (v === undefined) return [];
-	return Array.isArray(v) ? v : [v];
+  if (v === undefined) return [];
+  return Array.isArray(v) ? v : [v];
 }
 
 module.exports = (opts = {}) => new Watcher(opts);
