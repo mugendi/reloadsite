@@ -197,25 +197,33 @@ class Watcher extends EventEmitter {
   }
 
   async reload(file = null) {
+    let HMRMethod = 'reload';
+    let fileName = null;
+
+    // use timeout to simulate some kind of debouncing for reloads where many files change at within a very little time
     clearTimeout(timeoutIntVal);
 
     timeoutIntVal = setTimeout(() => {
       debug.log('reloading');
       this.emit('reloaded', this.opts.port);
 
-      //   determine file type
-      let ext = path.extname(file).slice(1);
-      //   determine reload method based on extensipon type
-      let HMRMethod =
-        styleExtensions.includes(ext) || imageExtensions.includes(ext)
-          ? 'linkChange'
-          : 'reload';
+      // if we have a file
+      if (file) {
+        //   determine file type
+        let ext = path.extname(file).slice(1);
+        //   determine reload method based on extensipon type
+        HMRMethod =
+          styleExtensions.includes(ext) || imageExtensions.includes(ext)
+            ? 'linkChange'
+            : 'reload';
+
+        fileName = path.basename(file);
+      }
 
       //   construct the object we want to send
       const data = {
-        action: 'reload',
         file,
-        fileName: path.basename(file),
+        fileName,
         HMRMethod,
       };
 
