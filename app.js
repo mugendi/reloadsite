@@ -24,6 +24,54 @@ const { createServer } = require('http'),
 let JSFIleData;
 let timeoutIntVal;
 
+let styleExtensions = [
+  // Styles
+  'css',
+];
+
+let imageExtensions = [
+  // Images:source https://github.com/mdn/content/blob/main/files/en-us/web/media/formats/image_types/index.md
+  'jpg',
+  'jpeg',
+  'jpe',
+  'jif',
+  'jfif',
+  'pjpeg',
+  'pjp',
+  'png',
+  'svg',
+  'tif',
+  'tiff',
+  'webp',
+  'apng',
+  'avif',
+];
+
+let scriptExtensions = [
+  // web scripts
+  'asp',
+  'aspx',
+  'cgi',
+  'htm',
+  'html',
+  'jhtml',
+  'js',
+  'jsa',
+  'jsp',
+  'php',
+  'php2',
+  'php3',
+  'php4',
+  'php5',
+  'php6',
+  'php7',
+  'phps',
+  'pht',
+  'phtml',
+  'shtml',
+  'xml',
+];
+
 class Watcher extends EventEmitter {
   constructor(opts) {
     super();
@@ -108,54 +156,16 @@ class Watcher extends EventEmitter {
         // always ignore node_modules
         ignored: /node_modules/,
         extensions: [
-          // Styles
-          'css',
-
-          // Images:source https://github.com/mdn/content/blob/main/files/en-us/web/media/formats/image_types/index.md
-          'jpg',
-          'jpeg',
-          'jpe',
-          'jif',
-          'jfif',
-          'pjpeg',
-          'pjp',
-          'png',
-          'svg',
-          'tif',
-          'tiff',
-          'webp',
-          'apng',
-          'avif',
-
-          // web scripts
-          'asp',
-          'aspx',
-          'cgi',
-          'htm',
-          'html',
-          'jhtml',
-          'js',
-          'jsa',
-          'jsp',
-          'php',
-          'php2',
-          'php3',
-          'php4',
-          'php5',
-          'php6',
-          'php7',
-          'phps',
-          'pht',
-          'phtml',
-          'shtml',
-          'xml',
+          ...styleExtensions,
+          ...imageExtensions,
+          ...scriptExtensions,
         ],
       },
       opts
     );
 
     // console.log(opts);
-    // console.log(this.watchOpts);
+    console.log(this.watchOpts.extensions);
 
     // make array and globs to watch only specific files
     dirs = arrify(dirs).filter((p) => path.resolve(p));
@@ -193,11 +203,20 @@ class Watcher extends EventEmitter {
       debug.log('reloading');
       this.emit('reloaded', this.opts.port);
 
+      //   determine file type
+      let ext = path.extname(file).slice(1);
+      //   determine reload method based on extensipon type
+      let HMRMethod =
+        styleExtensions.includes(ext) || imageExtensions.includes(ext)
+          ? 'linkChange'
+          : 'reload';
+
       //   construct the object we want to send
       const data = {
         action: 'reload',
         file,
         fileName: path.basename(file),
+        HMRMethod,
       };
 
       // debug.log(this.connections);
