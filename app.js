@@ -165,7 +165,7 @@ class Watcher extends EventEmitter {
     );
 
     // console.log(opts);
-    console.log(this.watchOpts.extensions);
+    // console.log(this.watchOpts.extensions);
 
     // make array and globs to watch only specific files
     dirs = arrify(dirs).filter((p) => path.resolve(p));
