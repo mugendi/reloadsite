@@ -43,8 +43,31 @@ function start(isReloaded = false) {
   };
 
   socket.onmessage = function (e) {
-    //reload
-    if (e.data == 'reload') {
+    let data = JSON.parse(e.data);
+
+    //for style and images, we try
+    if (data.HMRMethod == 'linkChange') {
+      let tags = document.querySelectorAll('link[rel="stylesheet"], img');
+
+      for (var tag of tags) {
+        var attrName;
+
+        if (tag && tag instanceof HTMLElement) {
+          if (tag.tagName.toLowerCase() == 'link') {
+            attrName = 'href';
+          } else {
+            attrName = 'src';
+          }
+
+          var urlFileName = tag[attrName].replace(/\?ts=.+$/, '');
+          if (urlFileName.endsWith(data.fileName)) {
+            tag[attrName] = urlFileName + '?ts=' + Date.now();
+          }
+        }
+      }
+    }
+    // otherwise we just reload page
+    else {
       window.location.reload();
     }
   };
@@ -67,7 +90,6 @@ function reconnect() {
     return;
   }
 
- 
   timeoutIntVal = setTimeout(() => {
     reconnect.retries++;
     reconnect.wait = Math.ceil(reconnect.wait * 1.15);
