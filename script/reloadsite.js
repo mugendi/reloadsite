@@ -23,6 +23,10 @@ function start(isReloaded = false) {
   socket.onopen = function () {
     console.info('LiveReload Connected');
     start.isConnecting = false;
+    // always reload if re-connection is made
+    if (isReloaded) {
+      window.location.reload();
+    }
   };
 
   socket.onclose = function (event) {
