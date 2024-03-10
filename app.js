@@ -22,7 +22,7 @@ const { createServer } = require('http'),
   EventEmitter = require('events');
 
 let JSFIleData;
-let timeoutIntVal;
+let timeoutIntVal = {};
 
 let styleExtensions = [
   // Styles
@@ -77,37 +77,17 @@ class Watcher extends EventEmitter {
     super();
 
     this.opts = Object.assign({ port: 35729 }, opts);
-
-    this.connections = {};
   }
 
   start_server() {
     let self = this;
 
-    const wss = new ws.Server({ server });
+    this.wss = new ws.Server({ server });
 
-    wss.on('connection', function (ws) {
-      // add connections so we can broadcast
-      self.connections[ws.id] = ws;
-
-      function log() {
-        debug.log(
-          `${Object.keys(self.connections).length} clients connected...`
-        );
-      }
-
+    this.wss.on('connection', function (ws) {
       ws.on('data', function (message) {
         ws.write(message);
       });
-
-      ws.on('close', function () {
-        if (ws.id in self.connections) {
-          delete self.connections[ws.id];
-          log();
-        }
-      });
-
-      log();
     });
 
     server.on('request', (req, res) => {
@@ -168,12 +148,15 @@ class Watcher extends EventEmitter {
     // console.log(this.watchOpts.extensions);
 
     // make array and globs to watch only specific files
-    dirs = arrify(dirs).filter((p) => path.resolve(p));
+    dirs = arrify(dirs)
+      .map((p) => path.resolve(p))
+      .filter((p) => fs.existsSync(p));
 
     let patterns = dirs.map((dir) =>
       path.join(dir, `**/*.{${this.watchOpts.extensions.join(',')}}`)
     );
 
+    console.log(patterns);
     // filter dirs
     this.start_server();
 
@@ -200,10 +183,14 @@ class Watcher extends EventEmitter {
     let HMRMethod = 'reload';
     let fileName = null;
 
-    // use timeout to simulate some kind of debouncing for reloads where many files change at within a very little time
-    clearTimeout(timeoutIntVal);
+    let ext = path.extname(file);
 
-    timeoutIntVal = setTimeout(() => {
+    // use timeout to simulate some kind of debouncing for reloads where many files change at within a very little time
+    // because HMR methods change by file,type, we use an extension keyed timeout variable
+
+    clearTimeout(timeoutIntVal[ext]);
+
+    timeoutIntVal[ext] = setTimeout(() => {
       debug.log('reloading');
       this.emit('reloaded', this.opts.port);
 
@@ -226,11 +213,14 @@ class Watcher extends EventEmitter {
         fileName,
         HMRMethod,
       };
+      
 
-      // debug.log(this.connections);
-      for (let id in this.connections) {
-        this.connections[id].send(JSON.stringify(data));
-      }
+      // broadcast
+      this.wss.clients.forEach(function each(client) {
+        if (client.readyState === ws.WebSocket.OPEN) {
+          client.send(JSON.stringify(data));
+        }
+      });
     }, 500);
   }
 }
