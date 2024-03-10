@@ -156,7 +156,6 @@ class Watcher extends EventEmitter {
       path.join(dir, `**/*.{${this.watchOpts.extensions.join(',')}}`)
     );
 
-    console.log(patterns);
     // filter dirs
     this.start_server();
 
